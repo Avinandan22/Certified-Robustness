@@ -14,14 +14,16 @@ import json
 certificate = 1
 
 # 1. Load and prepare the MNIST dataset (1 vs 7)
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),  # Resize to 224x224 for ResNet
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485], std=[0.229])  # Normalize for grayscale
-])
+transform = transforms.Compose(
+    [
+        transforms.Resize((224, 224)),  # Resize to 224x224 for ResNet
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485], std=[0.229]),  # Normalize for grayscale
+    ]
+)
 
-train_dataset = MNIST(root='./data', train=True, transform=transform, download=True)
-test_dataset = MNIST(root='./data', train=False, transform=transform, download=True)
+train_dataset = MNIST(root="./data", train=True, transform=transform, download=True)
+test_dataset = MNIST(root="./data", train=False, transform=transform, download=True)
 
 label_pairs = [(3, 5), (4, 9), (5, 8), (3, 8), (0, 6)]
 label1 = 0
@@ -46,9 +48,10 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 # Step 2: Pass the images through pre-trained ResNet18 to get features
 resnet = resnet18(pretrained=True)
-resnet.fc = nn.Identity()  # Remove the final fully connected layer to use as a feature extractor
+resnet.fc = (
+    nn.Identity()
+)  # Remove the final fully connected layer to use as a feature extractor
 
-print("Features Extracted")
 
 def extract_features(loader, model):
     features, labels = [], []
@@ -60,14 +63,17 @@ def extract_features(loader, model):
             labels.append(target)
     return torch.cat(features), torch.cat(labels)
 
+
 train_features, train_labels = extract_features(train_loader, resnet)
 test_features, test_labels = extract_features(test_loader, resnet)
+
 
 # Apply PCA for dimensionality reduction
 def apply_pca(features, n_components):
     pca = PCA(n_components=n_components)
     reduced_features = pca.fit_transform(features)
     return reduced_features
+
 
 # Parameters
 n_components = 10  # Desired number of components
@@ -101,8 +107,12 @@ d = train_features.shape[1]
 bias_feature = 1 / np.sqrt(d)
 # bias_feature = 0
 
-train_features = torch.cat([train_features, bias_feature * torch.ones(train_features.size(0), 1)], dim=1)
-test_features = torch.cat([test_features, bias_feature * torch.ones(test_features.size(0), 1)], dim=1)
+train_features = torch.cat(
+    [train_features, bias_feature * torch.ones(train_features.size(0), 1)], dim=1
+)
+test_features = torch.cat(
+    [test_features, bias_feature * torch.ones(test_features.size(0), 1)], dim=1
+)
 
 new_train_norms = torch.norm(train_features, p=2, dim=1)
 new_max_norm = new_train_norms.max()
@@ -112,7 +122,7 @@ new_test_norms = torch.norm(test_features, p=2, dim=1)
 test_features /= new_max_norm
 
 if certificate:
-    
+
     train_features *= train_labels.view(-1, 1).float()
     test_features *= test_labels.view(-1, 1).float()
 
@@ -134,11 +144,16 @@ if certificate:
 
     def compute_certificate(Z, epsilon, eta, sigma):
         # Simulate the hinge_certificate function
-        certificate_value = hinge_certificate(Z, sigma, eta, epsilon)["optimal_value"] 
+        certificate_value = hinge_certificate(Z, sigma, eta, epsilon)["optimal_value"]
         return epsilon, eta, sigma, certificate_value
 
     # Prepare parameters for parallel execution
-    params = [(Z, epsilon, eta, sigma) for epsilon in epsilon_list for eta in eta_list for sigma in sigma_list]
+    params = [
+        (Z, epsilon, eta, sigma)
+        for epsilon in epsilon_list
+        for eta in eta_list
+        for sigma in sigma_list
+    ]
     # eta_sigma_pairs = [(5e-5, 6e-3), (5e-5, 1e-2), (1e-4, 1e-2), (5e-5, 6e-2)]
     # params = [(Z, epsilon, eta, sigma) for epsilon in epsilon_list for (eta, sigma) in eta_sigma_pairs]
 
@@ -203,7 +218,7 @@ else:
     sigma_list = [3e-3, 6e-3, 1e-2, 3e-2, 6e-2]
     # eta_sigma_pairs = [(eta, sigma) for eta in eta_list for sigma in sigma_list]
     eta_sigma_pairs = [(5e-5, 6e-3), (5e-5, 1e-2), (1e-4, 1e-2), (5e-5, 6e-2)]
-    attack_types = ['fgsm', 'pgd', 'label_flip']
+    attack_types = ["fgsm", "pgd", "label_flip"]
 
     for eta, sigma in eta_sigma_pairs:
         for epsilon in epsilon_list:
@@ -216,7 +231,7 @@ else:
 
                 # Use SGD with an initial learning rate
                 optimizer = optim.SGD(model.parameters(), lr=eta, weight_decay=sigma)
-                
+
                 # Initialize a list to store parameters from the last epoch
                 last_epoch_weights = []
 
@@ -230,10 +245,24 @@ else:
                         adv = np.random.binomial(1, epsilon)
                         if adv == 1:
                             # outputs = model(-batch_features).squeeze()
-                            if (attack == 'fgsm'):
-                                z_adv = projected_gradient_ascent(model.linear.weight.data.squeeze().numpy(), Z_target.numpy(), sigma, eta, 100, 1)
-                            elif (attack == 'pgd'):
-                                z_adv = projected_gradient_ascent(model.linear.weight.data.squeeze().numpy(), Z_target.numpy(), sigma, eta, 1, 100)
+                            if attack == "fgsm":
+                                z_adv = projected_gradient_ascent(
+                                    model.linear.weight.data.squeeze().numpy(),
+                                    Z_target.numpy(),
+                                    sigma,
+                                    eta,
+                                    100,
+                                    1,
+                                )
+                            elif attack == "pgd":
+                                z_adv = projected_gradient_ascent(
+                                    model.linear.weight.data.squeeze().numpy(),
+                                    Z_target.numpy(),
+                                    sigma,
+                                    eta,
+                                    1,
+                                    100,
+                                )
                             else:
                                 z_adv = -batch_features
                             z_adv = torch.tensor(z_adv, dtype=torch.float32)
@@ -248,7 +277,12 @@ else:
 
                         # Store model parameters if we are in the last epoch
                         if epoch == epochs - 1:
-                            last_epoch_weights.append({name: param.clone() for name, param in model.named_parameters()})
+                            last_epoch_weights.append(
+                                {
+                                    name: param.clone()
+                                    for name, param in model.named_parameters()
+                                }
+                            )
 
                 # Evaluate the model on the test set for the last epoch weights
                 model.eval()
@@ -263,7 +297,9 @@ else:
 
                         # Compute hinge loss on test set
                         test_outputs = model(test_features).squeeze()
-                        test_hinge_loss = hinge_loss(test_outputs, test_labels.float()).item()
+                        test_hinge_loss = hinge_loss(
+                            test_outputs, test_labels.float()
+                        ).item()
                         # test_outputs = model(train_features).squeeze()
                         # test_hinge_loss = hinge_loss(test_outputs, train_labels.float()).item()
                         total_hinge_loss += test_hinge_loss
@@ -281,7 +317,9 @@ else:
                 # Print the results
                 print(f"Eta: {eta}, Sigma: {sigma}")
                 print(f"Average Test Hinge Loss (last epoch): {average_hinge_loss:.4f}")
-                print(f"Average Test Accuracy (last epoch): {average_accuracy * 100:.2f}%")
+                print(
+                    f"Average Test Accuracy (last epoch): {average_accuracy * 100:.2f}%"
+                )
 
                 # Convert tuple to string for keys
                 # hinge_loss_results[f"{eta}_{sigma}"] = average_hinge_loss
@@ -297,8 +335,8 @@ else:
                 accuracy_results[key]["certificate"].append(average_accuracy)
 
     # Save the results to JSON files
-    with open('accuracy_results_flip_attack_new.json', 'w') as f:
+    with open("accuracy_results_flip_attack_new.json", "w") as f:
         json.dump(accuracy_results, f)
 
-    with open('hinge_loss_results_flip_attack_new.json', 'w') as f:
+    with open("hinge_loss_results_flip_attack_new.json", "w") as f:
         json.dump(hinge_loss_results, f)

@@ -8,6 +8,13 @@ This project aims to certify the robustness of machine learning models against a
 To install the dependencies, run the following command:
 pip install -r requirements.txt
 
+## General Certificate Abstract Class
+The generalized_certificate.py module provides an abstract class for computing certificates and using them to meta-learn a robust learning algorithm. This class serves as a foundation for implementing specific certification methods.
+
+## Example Implementations
+MeanEstimation/mean_estimation_toy.py: Provides a concrete implementation of the certificate abstract class for the mean estimation task.
+Classification/classification_toy.py: Provides a concrete implementation of the certificate abstract class for the classification task.
+
 ## Mean Estimation
 To perform mean estimation, follow these steps:
 1. Navigate to the `MeanEstimation` directory: cd MeanEstimation
